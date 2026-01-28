@@ -1,33 +1,25 @@
-# ForexBot MVP
+# 📈ForexBot MVP
 
-A simple and lightweight Forex trading bot using **MetaTrader5**, designed for **EMA crossover strategy** with safe trade management and Telegram notifications.
+A simple Forex trading bot using MetaTrader5 and EMA crossover strategy. Sends trade alerts to Telegram.
 
 ---
 
-## Key Features
+## Features
 
-- **EMA Crossover Signals** – Fast EMA and Slow EMA strategy for automated entries  
-- **Safe Trade Execution** – Automatically closes opposite trades before opening new ones  
-- **Stop Loss & Take Profit** – Pre-set SL and TP for every trade  
-- **Trailing Stop Loss** – Moves SL to lock in profits  
-- **Telegram Notifications** – Get instant alerts for every executed trade  
+- EMA crossover signals (fast and slow EMA)  
+- Safe trade execution (closes opposite trades before opening new ones)  
+- Stop Loss and Take Profit for every trade  
+- Trailing Stop Loss  
+- Telegram notifications to your chat and channel  
 
 ---
 
 ## Requirements
 
-Python 3.8+ and the following libraries:
+- Python 3.8+  
+- Libraries: `MetaTrader5`, `pandas`, `numpy`, `requests`, `python-dotenv`  
 
-```
-
-MetaTrader5
-pandas
-numpy
-requests
-
-````
-
-Install all dependencies with:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -37,29 +29,20 @@ pip install -r requirements.txt
 
 ## Setup
 
-1. Open `config.py` and update your MT5 account and trading settings:
+1. Create a `.env` file with your credentials:
 
-```python
-MT5_Login = 123456
-MT5_Password = "password"
-MT5_Server = "Broker-Server"
+```
+MT5_LOGIN=123456
+MT5_PASSWORD=yourpassword
+MT5_SERVER=Broker-Server
 
-Trade_Symbol = "EURUSDm"
-Lot_Size = 0.01
-Stop_Loss = 100      # points
-Take_Profit = 200    # points
-
-EMA_FAST = 10
-EMA_SLOW = 20
-
-# Telegram notifications
-TELEGRAM_BOT_TOKEN = "your_bot_token"
-TELEGRAM_CHAT_ID = "your_chat_id"
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=@yourusername
+TELEGRAM_CHANNEL_ID=@YourChannelUsername
 ```
 
-2. Make sure **MetaTrader5 desktop** is running and logged in.
-3. Ensure your symbol is visible in Market Watch.
-4. Enable **Algo Trading** in MT5.
+2. Open MetaTrader5 and ensure your symbol is visible.
+3. Enable Algo Trading in MT5.
 
 ---
 
@@ -71,10 +54,10 @@ python main.py
 
 The bot will:
 
-* Check EMA crossover signals every M1 candle
-* Open/close trades safely
-* Automatically update trailing Stop Loss
-* Send Telegram alerts for all trade actions
+* Check EMA signals every 1-minute candle
+* Open and close trades safely
+* Update trailing Stop Loss
+* Send Telegram notifications for every trade
 
 ---
 
@@ -82,12 +65,14 @@ The bot will:
 
 ```
 ForexBot/
+├── config.py
+├── .env
 ├── main.py
 ├── logic.py
-├── trade_excuter.py
+├── trade_excute.py
 ├── mt5_connect.py
-├── config.py
 ├── telegram.py
+├── README.md
 ├── requirements.txt
 └── __pycache__/
 ```
@@ -96,7 +81,6 @@ ForexBot/
 
 ## Notes
 
-* **Demo First:** Always test on demo accounts before going live.
-* **Points Not Pips:** SL and TP are measured in points.
-* **Lightweight & MVP:** Minimal setup, easy to extend.
-
+* Test on demo accounts first.
+* Stop Loss and Take Profit are measured in points.
+* Lightweight and easy to extend.
