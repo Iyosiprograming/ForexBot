@@ -1,5 +1,12 @@
 import MetaTrader5 as mt5
-from config import MT5_Login, MT5_Password, MT5_Server
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+MT5_Login = int(os.getenv("MT5_LOGIN"))
+MT5_Password = os.getenv("MT5_PASSWORD")
+MT5_Server = os.getenv("MT5_SERVER")
 
 def connect_mt5():
     """Initialize MT5 connection."""
