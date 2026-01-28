@@ -2,9 +2,7 @@ import MetaTrader5 as mt5
 from config import Trade_Symbol, Lot_Size, Stop_Loss, Take_Profit, DEVIATION, MAGIC
 from telegram import send_telegram
 
-# =========================
 # POSITION HELPERS
-# =========================
 
 def get_position():
     positions = mt5.positions_get(symbol=Trade_Symbol)
@@ -37,9 +35,8 @@ def close_position(position):
     mt5.order_send(request)
     print(f"Closed position {position.type} ticket {position.ticket}")
 
-# =========================
 # OPEN ORDERS
-# =========================
+
 def open_buy():
     tick = mt5.symbol_info_tick(Trade_Symbol)
     request = {
@@ -81,9 +78,8 @@ def open_sell():
     print("SELL result:", result)
     send_telegram(f"📉 SELL executed: {Trade_Symbol} at {request['price']}")
 
-# =========================
 # SIGNAL HANDLER
-# =========================
+
 def handle_signal(signal):
     """
     signal: "BUY", "SELL", or None
@@ -105,9 +101,8 @@ def handle_signal(signal):
         close_position(position)
         open_sell()
 
-# =========================
 # SIMPLE TRAILING SL
-# =========================
+
 def trailing_sl(distance_points=50):
     position = get_position()
     if not position:

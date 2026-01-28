@@ -16,7 +16,6 @@ def connect_mt5():
 
     print("✅ MT5 initialized successfully")
 
-    # Make sure the symbol is visible
     from config import Trade_Symbol
     if not mt5.symbol_select(Trade_Symbol, True):
         print(f"⚠ Could not select symbol {Trade_Symbol}")

@@ -6,7 +6,7 @@ from config import Trade_Symbol, EMA_FAST, EMA_SLOW
 def get_signal():
     """Return 'BUY', 'SELL', or None based on EMA crossover."""
 
-    # GET DATA (skip forming candle)
+    # GET DATA 
     rates = mt5.copy_rates_from_pos(Trade_Symbol, mt5.TIMEFRAME_M1, 1, 100)
     if rates is None:
         print("Symbol not found")
@@ -40,12 +40,3 @@ def get_signal():
     else:
         print("⏸️ No signal")
         return None
-
-# Optional: quick test if run directly
-if __name__ == "__main__":
-    if not connect_mt5():
-        mt5.shutdown()
-        exit()
-    signal = get_signal()
-    print("Signal returned:", signal)
-    mt5.shutdown()
