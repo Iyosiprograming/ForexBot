@@ -1,5 +1,5 @@
 import MetaTrader5 as mt5
-from config import Trade_Symbol, Lot_Size, Stop_Loss, Take_Profit, DEVIATION, MAGIC
+from config import Trade_Symbol, Lot_Size, Stop_Loss, Take_Profit,Sl_Traling_points ,DEVIATION, MAGIC
 from telegram import send_telegram
 
 # POSITION HELPERS
@@ -34,6 +34,7 @@ def close_position(position):
     }
     mt5.order_send(request)
     print(f"Closed position {position.type} ticket {position.ticket}")
+    send_telegram(f"❌ Closed position ticket {position.ticket}")
 
 # OPEN ORDERS
 
@@ -103,7 +104,7 @@ def handle_signal(signal):
 
 # SIMPLE TRAILING SL
 
-def trailing_sl(distance_points=50):
+def trailing_sl(Sl_Traling_points):
     position = get_position()
     if not position:
         return
