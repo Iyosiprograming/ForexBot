@@ -1,23 +1,40 @@
 import MetaTrader5 as mt5
-from config import Trade_Symbol, Lot_Size, Stop_Loss, Take_Profit,Sl_Traling_points ,DEVIATION, MAGIC
+from config import (
+    Trade_Symbol,
+    Lot_Size,
+    Stop_Loss,
+    Take_Profit,
+    DEVIATION,
+    MAGIC,
+    USE_TRAILING_SL,
+    TRAIL_START_PIPS,
+    TRAIL_DISTANCE_PIPS,
+    TRAIL_STEP_PIPS,
+)
 from telegram import send_telegram
+import time
 
-# POSITION HELPERS
+# -------------------------
+# HELPERS
+# -------------------------
+
+def price_to_pips(price_diff):
+    symbol = mt5.symbol_info(Trade_Symbol)
+    return round(price_diff / symbol.point, 1)
+
 
 def get_position():
     positions = mt5.positions_get(symbol=Trade_Symbol)
-    if positions:
-        return positions[0]
-    return None
+    return positions[0] if positions else None
+
+# -------------------------
+# TRADE FUNCTIONS
+# -------------------------
 
 def close_position(position):
     tick = mt5.symbol_info_tick(Trade_Symbol)
-    if position.type == mt5.POSITION_TYPE_BUY:
-        order_type = mt5.ORDER_TYPE_SELL
-        price = tick.bid
-    else:
-        order_type = mt5.ORDER_TYPE_BUY
-        price = tick.ask
+    order_type = mt5.ORDER_TYPE_SELL if position.type == mt5.POSITION_TYPE_BUY else mt5.ORDER_TYPE_BUY
+    price = tick.bid if order_type == mt5.ORDER_TYPE_SELL else tick.ask
 
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
@@ -28,63 +45,101 @@ def close_position(position):
         "price": price,
         "deviation": DEVIATION,
         "magic": MAGIC,
-        "comment": "Close opposite",
+        "comment": "Close position",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_IOC,
     }
-    mt5.order_send(request)
-    print(f"Closed position {position.type} ticket {position.ticket}")
-    send_telegram(f"❌ Closed position ticket {position.ticket}")
 
-# OPEN ORDERS
+    result = mt5.order_send(request)
+
+    if result.retcode == mt5.TRADE_RETCODE_DONE:
+        send_telegram(
+            f"❌ POSITION CLOSED\n"
+            f"Symbol: {Trade_Symbol}\n"
+            f"Ticket: {position.ticket}\n"
+            f"Profit: {position.profit:.2f}"
+        )
 
 def open_buy():
     tick = mt5.symbol_info_tick(Trade_Symbol)
+    symbol = mt5.symbol_info(Trade_Symbol)
+    point = symbol.point
+
+    sl = tick.bid - Stop_Loss * point
+    tp = tick.bid + Take_Profit * point
+
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": Trade_Symbol,
         "volume": Lot_Size,
         "type": mt5.ORDER_TYPE_BUY,
         "price": tick.ask,
+        "sl": sl,
+        "tp": tp,
         "deviation": DEVIATION,
         "magic": MAGIC,
         "comment": "BOT BUY",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_IOC,
-        "sl": tick.bid - Stop_Loss * mt5.symbol_info(Trade_Symbol).point,
-        "tp": tick.bid + Take_Profit * mt5.symbol_info(Trade_Symbol).point,
     }
-    result = mt5.order_send(request)
-    print("BUY result:", result)
-    send_telegram(f"📈 BUY executed: {Trade_Symbol} at {request['price']}")
 
+    result = mt5.order_send(request)
+
+    if result.retcode == mt5.TRADE_RETCODE_DONE:
+        send_telegram(
+            f"📈 BUY OPENED\n"
+            f"Symbol: {Trade_Symbol}\n"
+            f"Entry: {tick.ask}\n"
+            f"SL: {sl}\n"
+            f"TP: {tp}\n"
+            f"Lot: {Lot_Size}\n"
+            f"Ticket: {result.order}"
+        )
 
 def open_sell():
     tick = mt5.symbol_info_tick(Trade_Symbol)
+    symbol = mt5.symbol_info(Trade_Symbol)
+    point = symbol.point
+
+    sl = tick.ask + Stop_Loss * point
+    tp = tick.ask - Take_Profit * point
+
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": Trade_Symbol,
         "volume": Lot_Size,
         "type": mt5.ORDER_TYPE_SELL,
         "price": tick.bid,
+        "sl": sl,
+        "tp": tp,
         "deviation": DEVIATION,
         "magic": MAGIC,
         "comment": "BOT SELL",
         "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": mt5.ORDER_FILLING_IOC,
-        "sl": tick.ask + Stop_Loss * mt5.symbol_info(Trade_Symbol).point,
-        "tp": tick.ask - Take_Profit * mt5.symbol_info(Trade_Symbol).point,
     }
-    result = mt5.order_send(request)
-    print("SELL result:", result)
-    send_telegram(f"📉 SELL executed: {Trade_Symbol} at {request['price']}")
 
+    result = mt5.order_send(request)
+
+    if result.retcode == mt5.TRADE_RETCODE_DONE:
+        send_telegram(
+            f"📉 SELL OPENED\n"
+            f"Symbol: {Trade_Symbol}\n"
+            f"Entry: {tick.bid}\n"
+            f"SL: {sl}\n"
+            f"TP: {tp}\n"
+            f"Lot: {Lot_Size}\n"
+            f"Ticket: {result.order}"
+        )
+
+# -------------------------
 # SIGNAL HANDLER
+# -------------------------
 
 def handle_signal(signal):
-    """
-    signal: "BUY", "SELL", or None
-    """
+    if not signal:
+        return
+
     position = get_position()
 
     if position is None:
@@ -94,7 +149,6 @@ def handle_signal(signal):
             open_sell()
         return
 
-    # Reverse if opposite signal
     if signal == "BUY" and position.type == mt5.POSITION_TYPE_SELL:
         close_position(position)
         open_buy()
@@ -102,32 +156,60 @@ def handle_signal(signal):
         close_position(position)
         open_sell()
 
-# SIMPLE TRAILING SL
+# -------------------------
+# TRAILING STOP LOSS
+# -------------------------
 
-def trailing_sl(Sl_Traling_points):
+def trailing_sl():
+    if not USE_TRAILING_SL:
+        return
+
     position = get_position()
     if not position:
         return
 
+    symbol = mt5.symbol_info(Trade_Symbol)
     tick = mt5.symbol_info_tick(Trade_Symbol)
-    point = mt5.symbol_info(Trade_Symbol).point
+    point = symbol.point
 
+    # BUY POSITION
     if position.type == mt5.POSITION_TYPE_BUY:
-        new_sl = tick.bid - distance_points * point
-        if position.sl == 0 or new_sl > position.sl:
-            modify_sl(position, new_sl)
-    elif position.type == mt5.POSITION_TYPE_SELL:
-        new_sl = tick.ask + distance_points * point
-        if position.sl == 0 or new_sl < position.sl:
+        profit_pips = price_to_pips(tick.bid - position.price_open)
+        if profit_pips < TRAIL_START_PIPS:
+            return
+        new_sl = tick.bid - TRAIL_DISTANCE_PIPS * point
+        if position.sl == 0 or price_to_pips(new_sl - position.sl) >= TRAIL_STEP_PIPS:
             modify_sl(position, new_sl)
 
-def modify_sl(position, sl):
+    # SELL POSITION
+    elif position.type == mt5.POSITION_TYPE_SELL:
+        profit_pips = price_to_pips(position.price_open - tick.ask)
+        if profit_pips < TRAIL_START_PIPS:
+            return
+        new_sl = tick.ask + TRAIL_DISTANCE_PIPS * point
+        if position.sl == 0 or price_to_pips(position.sl - new_sl) >= TRAIL_STEP_PIPS:
+            modify_sl(position, new_sl)
+
+# -------------------------
+# MODIFY SL
+# -------------------------
+
+def modify_sl(position, new_sl):
+    old_sl = position.sl
     request = {
         "action": mt5.TRADE_ACTION_SLTP,
         "position": position.ticket,
-        "sl": sl,
+        "sl": new_sl,
         "tp": position.tp,
     }
-    mt5.order_send(request)
-    print(f"Updated SL for ticket {position.ticket} to {sl}")
-    send_telegram(f"🔧 Updated SL for ticket {position.ticket} to {sl}")
+    result = mt5.order_send(request)
+    if result.retcode == mt5.TRADE_RETCODE_DONE:
+        moved_pips = price_to_pips(abs(new_sl - old_sl)) if old_sl != 0 else 0
+        send_telegram(
+            f"🔧 TRAILING SL UPDATED\n"
+            f"Ticket: {position.ticket}\n"
+            f"Old SL: {old_sl}\n"
+            f"New SL: {new_sl}\n"
+            f"Moved: {moved_pips} pips"
+        )
+

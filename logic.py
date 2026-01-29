@@ -1,42 +1,41 @@
 import MetaTrader5 as mt5
 import pandas as pd
-from mt5_connect import connect_mt5
 from config import Trade_Symbol, EMA_FAST, EMA_SLOW
 
-def get_signal():
-    """Return 'BUY', 'SELL', or None based on EMA crossover."""
+_last_candle_time = None
 
-    # GET DATA 
-    rates = mt5.copy_rates_from_pos(Trade_Symbol, mt5.TIMEFRAME_M1, 1, 100)
-    if rates is None:
+
+def get_signal():
+    global _last_candle_time
+
+    rates = mt5.copy_rates_from_pos(Trade_Symbol, mt5.TIMEFRAME_M1, 0, 100)
+    if rates is None or len(rates) < EMA_SLOW + 2:
         print("Symbol not found")
         return None
 
     df = pd.DataFrame(rates)
-    df['time'] = pd.to_datetime(df['time'], unit='s')
 
-    # EMAs
-    df['ema_fast'] = df['close'].ewm(span=EMA_FAST, adjust=False).mean()
-    df['ema_slow'] = df['close'].ewm(span=EMA_SLOW, adjust=False).mean()
+    candle_time = df.iloc[-1]["time"]
+    if candle_time == _last_candle_time:
+        print("⏸️ No signal")
+        return None
 
-    # Previous values
-    df['prev_fast'] = df['ema_fast'].shift(1)
-    df['prev_slow'] = df['ema_slow'].shift(1)
+    _last_candle_time = candle_time
 
-    # Signals
-    df['long_signal'] = (df['prev_fast'] <= df['prev_slow']) & (df['ema_fast'] > df['ema_slow'])
-    df['short_signal'] = (df['prev_fast'] >= df['prev_slow']) & (df['ema_fast'] < df['ema_slow'])
+    close = df["close"]
+    ema_fast = close.ewm(span=EMA_FAST, adjust=False).mean()
+    ema_slow = close.ewm(span=EMA_SLOW, adjust=False).mean()
 
-    last = df.iloc[-1]
+    fast_prev, fast_curr = ema_fast.iloc[-2], ema_fast.iloc[-1]
+    slow_prev, slow_curr = ema_slow.iloc[-2], ema_slow.iloc[-1]
 
-    if last['long_signal']:
+    if fast_prev <= slow_prev and fast_curr > slow_curr:
         print("📈 BUY signal")
         return "BUY"
 
-    elif last['short_signal']:
+    if fast_prev >= slow_prev and fast_curr < slow_curr:
         print("📉 SELL signal")
         return "SELL"
 
-    else:
-        print("⏸️ No signal")
-        return None
+    print("⏸️ No signal")
+    return None
