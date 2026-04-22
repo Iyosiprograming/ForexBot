@@ -1,7 +1,7 @@
 
 # 📈 ForexBot MVP
 
-A simple Forex trading bot using MetaTrader5 and EMA crossover strategy. Sends trade alerts **only to the Telegram channel** `@ajjfklajfklajfkljkl`.
+A simple Forex trading bot using MetaTrader5 and EMA crossover strategy. Sends trade alerts **only to the Telegram channel** `@ajjfklajfklajfkljkl`. unfortunaltly the telegram channel has stoped if u want to use it u can clone the repo and use it
 
 ---
 
